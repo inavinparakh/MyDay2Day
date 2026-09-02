@@ -94,8 +94,13 @@ const App = {
 
     const tasks = await TaskManager.getForDate(today);
     const categories = await CategoryManager.getAll();
-    const timed = tasks.filter(t => t.dueTime && t.status !== 'completed').sort((a, b) => a.dueTime.localeCompare(b.dueTime));
-    const anytime = tasks.filter(t => !t.dueTime && t.status !== 'completed');
+
+    // Column 1, top-to-bottom: today's scheduled (timed) tasks, then
+    // anytime pending tasks, then carried-forward tasks.
+    const scheduled = tasks.filter(t => t.dueTime && t.status === 'pending').sort((a, b) => a.dueTime.localeCompare(b.dueTime));
+    const pending = tasks.filter(t => !t.dueTime && t.status === 'pending');
+    const carried = tasks.filter(t => t.status === 'carried').sort((a, b) => (a.dueTime || '').localeCompare(b.dueTime || ''));
+    // Column 2: only today's completed tasks.
     const done = tasks.filter(t => t.status === 'completed');
 
     const container = document.getElementById('today-timeline');
@@ -104,23 +109,40 @@ const App = {
       return;
     }
 
-    let html = '';
-    if (timed.length || anytime.length) {
-      html += '<div class="day-timeline">';
-      timed.forEach(t => { html += renderTimelineRow(t, categories); });
-      if (anytime.length) {
-        html += `<div class="timeline-section-label">Anytime</div>`;
-        anytime.forEach(t => { html += renderTimelineRow(t, categories); });
-      }
-      html += '</div>';
-    }
+    const leftGroups = [
+      { label: "Today's Tasks", items: scheduled },
+      { label: 'Pending', items: pending },
+      { label: 'Carried Forward', items: carried }
+    ].filter(g => g.items.length);
+
+    let leftHtml = leftGroups.length ? '' : `<div class="empty-state">All clear 🎉</div>`;
+    leftGroups.forEach(g => {
+      leftHtml += `<div class="col-group-label">${g.label}</div><div class="task-mini-list">`;
+      g.items.forEach(t => { leftHtml += renderCompactTaskCard(t, categories.find(c => c.id === t.category)); });
+      leftHtml += '</div>';
+    });
+
+    let rightHtml;
     if (done.length) {
-      html += `<div class="timeline-section-label">Completed today</div><div class="task-list">`;
-      done.forEach(t => { html += renderTaskCard(t, categories.find(c => c.id === t.category)); });
-      html += '</div>';
+      rightHtml = '<div class="task-mini-list">';
+      done.forEach(t => { rightHtml += renderCompletedMiniCard(t, categories.find(c => c.id === t.category)); });
+      rightHtml += '</div>';
+    } else {
+      rightHtml = `<div class="empty-state">Nothing completed yet</div>`;
     }
-    container.innerHTML = html;
-    bindTaskCardEvents(container);
+
+    container.innerHTML = `
+      <div class="today-columns">
+        <div class="today-col today-col-left">
+          <div class="today-col-head">📋 Today's Schedule</div>
+          ${leftHtml}
+        </div>
+        <div class="today-col today-col-right">
+          <div class="today-col-head">✅ Completed</div>
+          ${rightHtml}
+        </div>
+      </div>`;
+    bindCompactTaskEvents(container);
   },
 
   async renderTasksList() {
@@ -224,3 +246,4 @@ const App = {
 };
 
 document.addEventListener('DOMContentLoaded', () => App.init());
+             
