@@ -40,6 +40,54 @@ function renderTaskCard(task, cat) {
     </div>`;
 }
 
+/* --- Compact cards for the Today two-column layout --- */
+function renderCompactTaskCard(task, cat) {
+  const meta = [];
+  if (task.dueTime) meta.push(formatTime12(task.dueTime));
+  if (cat) meta.push(`<span class="cat-chip" style="background:${cat.color}22;color:${cat.color}">${escapeHtml(cat.name)}</span>`);
+  if (task.status === 'carried') meta.push(`<span class="mini-carried-tag">🔄 carried</span>`);
+
+  return `
+    <div class="task-card-mini priority-${task.priority}" data-id="${task.id}" data-action="open">
+      <button class="mini-check" data-action="toggle" aria-label="Mark complete"></button>
+      <div class="mini-body">
+        <div class="mini-title">${escapeHtml(task.title)}</div>
+        <div class="mini-meta">${meta.join(' ')}</div>
+      </div>
+    </div>`;
+}
+
+function renderCompletedMiniCard(task, cat) {
+  const meta = [];
+  if (task.dueTime) meta.push(formatTime12(task.dueTime));
+  if (cat) meta.push(escapeHtml(cat.name));
+
+  return `
+    <div class="task-card-done" data-id="${task.id}" data-action="open">
+      <span class="done-tick">✓</span>
+      <div class="mini-body">
+        <div class="mini-title">${escapeHtml(task.title)}</div>
+        <div class="mini-meta">${meta.join(' · ')}</div>
+      </div>
+    </div>`;
+}
+
+function bindCompactTaskEvents(container) {
+  container.querySelectorAll('.task-card-mini').forEach(card => {
+    const id = card.dataset.id;
+    const checkBtn = card.querySelector('[data-action="toggle"]');
+    checkBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await TaskManager.complete(id);
+      App.refreshCurrentView();
+    });
+    card.addEventListener('click', () => TaskModal.open(id));
+  });
+  container.querySelectorAll('.task-card-done').forEach(card => {
+    card.addEventListener('click', () => TaskModal.open(card.dataset.id));
+  });
+}
+
 function bindTaskCardEvents(container) {
   container.querySelectorAll('.task-card').forEach(card => {
     const id = card.dataset.id;
@@ -312,3 +360,4 @@ const TaskModal = {
     NotificationManager.scheduleAllReminders();
   }
 };
+       
